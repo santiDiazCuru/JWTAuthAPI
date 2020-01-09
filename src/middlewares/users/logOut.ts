@@ -15,7 +15,11 @@ async function logOutMiddleware(
   if (!id) {
     return res.send({ message: "Incorrect Token" });
   }
-  const { tokenSalt } = await UsersController.findUserData(id);
+  const { error, message, tokenSalt } =
+    (await UsersController.findUserData(id)) || null;
+  if (error) {
+    return res.status(500).send(message);
+  }
   const isTokenCorrect = TokensController.verifyToken(incomingToken, tokenSalt);
   if (!isTokenCorrect) {
     return res.send({ message: "Incorrect Token" });

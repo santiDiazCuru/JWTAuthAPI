@@ -1,6 +1,4 @@
 import User from "../models/User";
-import TokensController from "../controllers/tokensController";
-import { userInfo } from "os";
 
 interface IuserData {
   id: number;
@@ -27,6 +25,7 @@ interface IUserDataForRegister {
   github: string | undefined;
   codewars: string | undefined;
   img: string | undefined;
+  confirmationToken: string;
 }
 
 interface IRegisterUserDataResponse {
@@ -56,6 +55,12 @@ interface IvalidateUserResponse {
 interface IChangePasswordResponse {
   error: boolean;
   message: string;
+}
+
+interface IActivateAccountResponse {
+  error: boolean;
+  message: string;
+  data: null | User;
 }
 
 class UsersController {
@@ -137,7 +142,8 @@ class UsersController {
         slack,
         github,
         codewars,
-        img
+        img,
+        confirmationToken
       } = await User.create(data);
       const response = {
         error: false,
@@ -152,7 +158,8 @@ class UsersController {
           slack,
           github,
           codewars,
-          img
+          img,
+          confirmationToken
         }
       };
       return response;
@@ -161,9 +168,12 @@ class UsersController {
     }
   }
 
-  public async findUserData(id: number): Promise<User> {
+  public async findUserData(id: number): Promise<any> {
     const user = await User.findByPk(id);
-    return user;
+    if (!user) {
+      return { error: true, message: "No user found", tokenSalt: null };
+    }
+    return { error: false, message: "", tokenSalt: user.tokenSalt };
   }
 
   public async refreshUserSalt(id: number): Promise<void> {
@@ -220,6 +230,84 @@ class UsersController {
     } catch (err) {
       return { error: true, message: err };
     }
+  }
+
+  public async activateAccount(
+    confirmationToken: string
+  ): Promise<IActivateAccountResponse> {
+    const user = await User.findOne({
+      where: {
+        confirmationToken: confirmationToken
+      }
+    });
+    if (!user) {
+      return { error: true, message: "No user found", data: null };
+    }
+    user.active = true;
+    await user.save();
+    return { error: false, message: "Done", data: user };
+  }
+
+  public async generateNewConfirmationToken(email: string): Promise<any> {
+    const user = await User.findOne({
+      where: {
+        email: email
+      }
+    });
+    if (!user) {
+      return { error: true, message: "No user found", data: null };
+    }
+    try {
+      const confirmationToken = await user.createConfirmationToken();
+      const response = {
+        error: false,
+        message: "",
+        data: {
+          confirmationToken
+        }
+      };
+      return response;
+    } catch (err) {
+      return { error: true, message: "Database Error", data: null };
+    }
+  }
+
+  public async confirmToken(
+    confirmationToken: string,
+    email: string
+  ): Promise<any> {
+    const user = await User.findOne({
+      where: {
+        email: email
+      }
+    });
+    if (!user) {
+      return { error: true, message: "No user found", data: null };
+    }
+    if (user.confirmationToken !== confirmationToken) {
+      return { error: true, message: "Incorrect Token", data: null };
+    }
+    return { error: false, message: "", data: null };
+  }
+
+  public async setNewPassword(
+    email: string,
+    newPassword: string,
+    confirmationToken: string
+  ): Promise<any> {
+    const user = await User.findOne({
+      where: {
+        email: email
+      }
+    });
+    if (!user) {
+      return { error: true, message: "No user found", data: null };
+    }
+    if (user.confirmationToken !== confirmationToken) {
+      return { error: true, message: "Wrong token", data: null };
+    }
+    await user.setNewPassword(newPassword);
+    return { error: false, message: "", data: null };
   }
 }
 

@@ -1,3 +1,7 @@
-import { Sequelize } from "sequelize";
+import User from "./User";
+import Pago from "./Pago";
 
-export const db = new Sequelize("postgres://localhost:5432/p5auth");
+User.hasOne(Pago);
+
+const Models = { User, Pago };
+export default Models;

@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
 import UsersController from "../../controllers/usersController";
-import TokensController from "../../controllers/tokensController";
-import User from "../../models/User";
 
 async function changePasswordMiddleware(
   req: Request,

@@ -1,5 +1,5 @@
 import { Model, DataTypes } from "sequelize";
-import { db } from "./index";
+import { db } from "./db";
 import crypto from "crypto";
 
 class User extends Model {
@@ -30,6 +30,8 @@ class User extends Model {
   ) => Promise<{ error: boolean; message: string }>;
   public validatePswd: (pswd: string) => boolean;
   public activateAccount: () => void;
+  public createConfirmationToken: () => Promise<string>;
+  public setNewPassword: (pswd: string) => Promise<void>;
 }
 
 User.init(
@@ -121,7 +123,6 @@ User.init(
 User.beforeCreate(user => {
   user.salt = crypto.randomBytes(64).toString("hex");
   user.tokenSalt = crypto.randomBytes(64).toString("hex");
-  user.confirmationToken = crypto.randomBytes(10).toString("hex");
   user.password = user.hashFunction(user.salt + user.password);
 });
 
@@ -156,4 +157,16 @@ User.prototype.changePassword = async function(oldPassword, newPassword) {
   }
 };
 
+User.prototype.createConfirmationToken = async function(): Promise<string> {
+  const newToken = crypto.randomBytes(7).toString("hex");
+  this.confirmationToken = newToken;
+  await this.save();
+  return newToken;
+};
+
+User.prototype.setNewPassword = async function(password): Promise<void> {
+  this.password = this.hashFunction(this.salt + password);
+  console.log("entra a setNewPassword");
+  await this.save();
+};
 export default User;
